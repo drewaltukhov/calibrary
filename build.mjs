@@ -9,6 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
@@ -22,6 +23,18 @@ const SITE_NAME = "Calibrary";
 const TAGLINE = "A reading room for the small hours.";
 // Set true to re-enable the in-browser EPUB reader ("Read online" button + reader pages).
 const SHOW_READER = false;
+const THEME_COLOR = "#f3eee2";   // cream — status bar / theme tint
+
+// Apple + PWA head tags. Makes "Add to Home Screen" a true standalone app:
+// the status bar is tinted to the theme (not a white bar) and iOS uses the
+// crisp apple-touch-icon.png instead of a fuzzy screenshot of the page. Also
+// registers the (shell-only) service worker so the app opens offline.
+const appleHead = (root) => `<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="${SITE_NAME}">
+<link rel="apple-touch-icon" href="${root}apple-touch-icon.png">
+<script>if('serviceWorker'in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>`;
 
 // ---- encryption (private library) -----------------------------------
 // The whole library is AES-GCM encrypted at rest. The passphrase comes
@@ -106,11 +119,12 @@ function writePage(rel, html){
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>${SITE_NAME}</title>
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3eee2">
+<meta name="theme-color" content="${THEME_COLOR}">
+${appleHead(root)}
 <link rel="icon" href="${root}favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="${root}assets/theme.css">
 ${calCfg(root)}
@@ -287,11 +301,163 @@ fs.writeFileSync(path.join(OUT, "books.json.enc"), encBytes(Buffer.from(JSON.str
 // favicon (brass book spine) + manifest
 fs.writeFileSync(path.join(OUT, "favicon.svg"),
 `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="5" fill="#efe9db"/><rect x="8" y="6" width="7" height="20" rx="1" fill="#9a6d20"/><rect x="16" y="6" width="6" height="20" rx="1" fill="#9c3826"/><rect x="9.5" y="9" width="4" height="1" fill="#efe9db"/><rect x="9.5" y="22" width="4" height="1" fill="#efe9db"/></svg>`);
+
+// ---- rasterised app icons (dependency-free PNG) ---------------------
+// iOS home-screen icons must be raster PNG — an SVG apple-touch-icon is
+// ignored and iOS falls back to a blurry screenshot. We draw the book-spine
+// mark at a few sizes so it stays sharp on high-density screens.
+function crc32(buf){
+  let c = ~0;
+  for (let i = 0; i < buf.length; i++){
+    c ^= buf[i];
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
+  }
+  return (~c) >>> 0;
+}
+function pngChunk(type, data){
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length, 0);
+  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body), 0);
+  return Buffer.concat([len, body, crc]);
+}
+function encodePng(w, h, rgba){
+  const sig = Buffer.from([0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 6; // 8-bit, colour type 6 (RGBA)
+  const stride = w * 4 + 1;
+  const raw = Buffer.alloc(stride * h);
+  for (let y = 0; y < h; y++) rgba.copy(raw, y * stride + 1, y * w * 4, (y + 1) * w * 4);
+  const idat = zlib.deflateSync(raw, { level: 9 });
+  return Buffer.concat([sig, pngChunk("IHDR", ihdr), pngChunk("IDAT", idat), pngChunk("IEND", Buffer.alloc(0))]);
+}
+// nearest-point rounded-rect hit test (all args in 0..1 fractions)
+function inRoundRect(px, py, x, y, w, h, r){
+  if (px < x || px > x + w || py < y || py > y + h) return false;
+  const rx = Math.min(Math.max(px, x + r), x + w - r);
+  const ry = Math.min(Math.max(py, y + r), y + h - r);
+  const dx = px - rx, dy = py - ry;
+  return dx * dx + dy * dy <= r * r;
+}
+function renderIcon(size){
+  const rgba = Buffer.alloc(size * size * 4);
+  const cream = [0xef,0xe9,0xdb], bronze = [0x9a,0x6d,0x20], bronzeHi = [0x6f,0x4c,0x14];
+  const oxblood = [0x9c,0x38,0x26], oxHi = [0x73,0x28,0x1b];
+  const w1 = 0.225, w2 = 0.19, gap = 0.03;
+  const x1 = (1 - (w1 + gap + w2)) / 2, x2 = x1 + w1 + gap;
+  const yTop = 0.26, hgt = 0.48, rs = 0.02;
+  const lineX = x1 + 0.045, lineW = w1 - 0.09, lineH = 0.018, lr = 0.006;
+  const lines = [yTop + 0.06, yTop + hgt - 0.09];
+  const SS = size > 256 ? 2 : 4, n = SS * SS;
+  for (let py = 0; py < size; py++){
+    for (let px = 0; px < size; px++){
+      let r = 0, g = 0, b = 0;
+      for (let sy = 0; sy < SS; sy++) for (let sx = 0; sx < SS; sx++){
+        const fx = (px + (sx + 0.5) / SS) / size, fy = (py + (sy + 0.5) / SS) / size;
+        let col = cream;
+        if (inRoundRect(fx, fy, x1, yTop, w1, hgt, rs)){
+          col = fx < x1 + 0.05 ? bronzeHi : bronze;
+          for (const ly of lines) if (inRoundRect(fx, fy, lineX, ly, lineW, lineH, lr)) col = cream;
+        }
+        if (inRoundRect(fx, fy, x2, yTop, w2, hgt, rs)) col = fx < x2 + 0.045 ? oxHi : oxblood;
+        r += col[0]; g += col[1]; b += col[2];
+      }
+      const o = (py * size + px) * 4;
+      rgba[o] = Math.round(r / n); rgba[o+1] = Math.round(g / n); rgba[o+2] = Math.round(b / n); rgba[o+3] = 255;
+    }
+  }
+  return rgba;
+}
+for (const [name, sz] of [["apple-touch-icon.png", 180], ["icon-192.png", 192], ["icon-512.png", 512]])
+  fs.writeFileSync(path.join(OUT, name), encodePng(sz, sz, renderIcon(sz)));
+
 fs.writeFileSync(path.join(OUT, "site.webmanifest"), JSON.stringify({
   name: SITE_NAME, short_name: SITE_NAME, start_url: "./", display: "standalone",
-  background_color: "#e8e2d3", theme_color: "#f3eee2",
-  icons: [{ src: "favicon.svg", sizes: "any", type: "image/svg+xml" }],
+  background_color: "#e8e2d3", theme_color: THEME_COLOR,
+  icons: [
+    { src: "favicon.svg", sizes: "any", type: "image/svg+xml" },
+    { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+    { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+  ],
 }, null, 2));
+
+// ---- offline fallback + service worker ------------------------------
+// Shell-only offline support: the UI/code is precached so the app always
+// opens (and can decrypt already-cached pages) with no connection; pages you
+// haven't visited fall back to this offline page. No plaintext is ever stored
+// — only the encrypted assets the browser already downloaded. The cache name
+// is stamped with the per-build SALT, so every rebuild replaces stale caches.
+const SW_VERSION = SALT.toString("hex").slice(0, 12);
+fs.writeFileSync(path.join(OUT, "offline.html"), `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${SITE_NAME} — Offline</title>
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="${THEME_COLOR}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/theme.css">
+</head>
+<body class="login-body">
+<main class="login">
+  <svg class="login__mark" viewBox="0 0 16 24" aria-hidden="true">
+    <rect x="0.6" y="0.6" width="14.8" height="22.8" rx="1.8" fill="var(--accent)"/>
+    <rect x="0.6" y="0.6" width="3.6" height="22.8" rx="1.8" fill="var(--accent-hi)"/>
+  </svg>
+  <h1>You're offline</h1>
+  <p>This page isn't in the cache yet. Reconnect and try again — pages you've already opened stay available offline.</p>
+  <p class="login__note"><a href="/" style="color:var(--accent)">Return to the library</a></p>
+</main>
+</body>
+</html>`);
+
+fs.writeFileSync(path.join(OUT, "sw.js"), `// Calibrary service worker — shell-only offline (build ${SW_VERSION}).
+const CORE_CACHE = "cal-core-${SW_VERSION}";
+const RUNTIME = "cal-rt-${SW_VERSION}";
+const CORE = [
+  "/offline.html", "/favicon.svg", "/apple-touch-icon.png", "/site.webmanifest",
+  "/assets/theme.css", "/assets/crypto.js", "/assets/forge.min.js",
+  "/assets/boot.js", "/assets/app.js", "/assets/i18n.js", "/assets/login.js",
+  "/assets/i18n/en.json", "/assets/i18n/ru.json",
+];
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CORE_CACHE)
+      .then((c) => Promise.all(CORE.map((u) => c.add(u).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
+});
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CORE_CACHE && k !== RUNTIME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (req.method !== "GET") return;
+  // Navigations: network-first, fall back to a cached copy, then the offline page.
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req)
+        .then((res) => { const copy = res.clone(); caches.open(RUNTIME).then((c) => c.put(req, copy)); return res; })
+        .catch(() => caches.match(req).then((hit) => hit || caches.match("/offline.html")))
+    );
+    return;
+  }
+  // Static assets & fonts: stale-while-revalidate.
+  e.respondWith(
+    caches.match(req).then((hit) => {
+      const net = fetch(req)
+        .then((res) => { if (res && (res.ok || res.type === "opaque")) { const copy = res.clone(); caches.open(RUNTIME).then((c) => c.put(req, copy)); } return res; })
+        .catch(() => hit);
+      return hit || net;
+    })
+  );
+});
+`);
 
 // ============================================================
 // 3. HTML shell + components
@@ -357,11 +523,12 @@ function layout({ title, description, root, active, body, bodyClass = "", head =
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>${esc(title)}</title>
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3eee2">
+<meta name="theme-color" content="${THEME_COLOR}">
+${appleHead(root)}
 <link rel="icon" href="${root}favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="${root}site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -627,7 +794,8 @@ for (const b of books) {
 <title>${SITE_NAME} - Reading: ${esc(b.title)}</title>
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3eee2">
+<meta name="theme-color" content="${THEME_COLOR}">
+${appleHead(rroot)}
 <link rel="icon" href="${rroot}favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="${rroot}assets/theme.css">
 ${calCfg(rroot)}
@@ -773,11 +941,12 @@ const loginHtml = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>${SITE_NAME} - Unlock</title>
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3eee2">
+<meta name="theme-color" content="${THEME_COLOR}">
+${appleHead(loginRoot)}
 <link rel="icon" href="${loginRoot}favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -816,10 +985,12 @@ const notFound = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>${SITE_NAME} - Not found</title>
 <meta name="color-scheme" content="light">
+<meta name="theme-color" content="${THEME_COLOR}">
+${appleHead("/")}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
