@@ -1,0 +1,106 @@
+{
+  "nav.books": "Books",
+  "nav.authors": "Authors",
+  "nav.series": "Series",
+  "nav.genres": "Genres",
+  "nav.readnext": "Read Next",
+
+  "search.ph": "Search by title or author…",
+  "search.aria": "Search books",
+  "search.none": "No matching books",
+
+  "home.eyebrow": "Personal library · established from Calibre",
+  "home.herotitle": "Books for the <em>small hours</em>, shelved and lit.",
+  "home.herolead": "{n} volumes — science fiction, fantasy, detective and the odd classic — browsable by author, series, genre or title. Read them here or take them with you.",
+  "home.readnext": "Read next",
+  "home.queue": "Your queue →",
+  "home.recent": "Recently shelved",
+  "home.allbooks": "All books →",
+  "home.seriessec": "Series",
+  "home.allseries": "All series →",
+  "home.genressec": "Genres",
+  "home.allgenres": "All genres →",
+
+  "stat.volumes": "Volumes",
+  "stat.authors": "Authors",
+  "stat.series": "Series",
+  "stat.genres": "Genres",
+
+  "crumb.home": "Home",
+
+  "books.h1": "All books",
+  "books.filterph": "Filter by title, author, series…",
+  "books.filteraria": "Filter books",
+  "books.genre": "Genre",
+  "books.all": "All",
+  "books.sortlabel": "Sort",
+  "sort.title": "Title A–Z",
+  "sort.author": "Author A–Z",
+  "sort.newest": "Recently added",
+  "sort.year": "Publication year",
+  "books.empty": "Nothing on this shelf matches. Try fewer words.",
+
+  "book.by": "by",
+  "book.bookno": "Book",
+  "book.about": "About",
+  "book.genres": "Genres",
+  "book.details": "Details",
+  "book.published": "Published",
+  "book.language": "Language",
+  "book.formats": "Formats",
+  "book.isbn": "ISBN",
+  "book.read": "Read online",
+  "book.download": "Download",
+  "book.nofile": "No file available",
+  "book.morein": "More in",
+  "book.moreby": "More by",
+
+  "bm.readnext": "Read next",
+  "bm.saved": "Saved for later",
+
+  "langname.rus": "Russian",
+  "langname.eng": "English",
+  "langname.ukr": "Ukrainian",
+
+  "readnext.h1": "Read next",
+  "readnext.intro": "Books you’ve set aside for later.",
+  "readnext.empty": "Nothing saved yet — tap the bookmark on any cover, or “Read next” on a book’s page, to build your queue.",
+
+  "footer.browse": "Browse all",
+
+  "notfound.h1": "Off the <b>shelf</b>",
+  "notfound.body": "That page isn’t here. It may have been re-catalogued.",
+  "notfound.back": "Return to the library →",
+
+  "login.tagline": "A private collection. Enter the passphrase to unlock the stacks.",
+  "login.ph": "Passphrase",
+  "login.unlock": "Unlock",
+  "login.unlocking": "Unlocking…",
+  "login.wrong": "That password didn’t open the library.",
+  "login.error": "Something went wrong unlocking. Please try again.",
+  "login.note": "Nothing loads until it’s decrypted in your browser.",
+
+  "reader.opening": "Opening",
+
+  "count.books": { "one": "{n} book", "other": "{n} books" },
+  "sub.author": { "one": "{n} book in the library.", "other": "{n} books in the library." },
+  "sub.seriesorder": { "one": "{n} book, shown in series order.", "other": "{n} books, shown in series order." },
+  "sub.genre": { "one": "{n} book.", "other": "{n} books." },
+  "idx.authors": { "one": "{n} author across the collection.", "other": "{n} authors across the collection." },
+  "idx.series": { "one": "{n} series across the collection.", "other": "{n} series across the collection." },
+  "idx.genres": { "one": "{n} genre across the collection.", "other": "{n} genres across the collection." },
+  "footer.summary": { "one": "{n} volume · generated from a Calibre library", "other": "{n} volumes · generated from a Calibre library" },
+
+  "genres": {
+    "det_action": "Detective · Action", "det_classic": "Classic Detective",
+    "det_history": "Historical Detective", "det_police": "Police Procedural",
+    "detective": "Detective", "foreign_fantasy": "Foreign Fantasy",
+    "foreign_sf": "Foreign Sci-Fi", "literature_20": "20th-Century Literature",
+    "popadanec": "Portal Fantasy", "prose_rus_classic": "Russian Classic Prose",
+    "sf": "Science Fiction", "sf_action": "Sci-Fi Action", "sf_cyberpunk": "Cyberpunk",
+    "sf_detective": "Sci-Fi Detective", "sf_fantasy": "Science Fantasy",
+    "sf_heroic": "Heroic Fantasy", "sf_history": "Alternate History",
+    "sf_horror": "Horror", "sf_humor": "Comedic Sci-Fi", "sf_social": "Social Sci-Fi",
+    "sf_space": "Space Opera", "thriller": "Thriller"
+  }
+}

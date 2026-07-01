@@ -21,6 +21,7 @@
   "homepage": "https://github.com/drewaltukhov/calibrary#readme",
   "dependencies": {
     "epubjs": "^0.3.93",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "node-forge": "^1.3.1"
   }
 }

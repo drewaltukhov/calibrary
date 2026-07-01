@@ -137,6 +137,20 @@ a { color: inherit; text-decoration: none; }
   background: var(--bookmark); color: #fff; font-size: .62rem; line-height: 1;
 }
 
+/* EN / RU language toggle */
+.langsel {
+  display: inline-flex; align-items: center; flex: none;
+  border: 1px solid var(--border-2); border-radius: 999px; overflow: hidden;
+}
+.langsel button {
+  background: none; border: 0; cursor: pointer; color: var(--muted);
+  font-family: var(--font-mono); font-size: .72rem; letter-spacing: .05em;
+  padding: .4rem .62rem; transition: color .15s, background .15s;
+}
+.langsel button:hover { color: var(--text); }
+.langsel button.is-active { background: var(--accent); color: #fff; }
+.login .langsel { margin: 1.6rem auto 0; }
+
 .search {
   display: flex; align-items: center; gap: .5ch;
   background: var(--surface);

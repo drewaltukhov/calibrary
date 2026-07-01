@@ -67,7 +67,7 @@
       }
       function render(results) {
         if (!input.value.trim()) return close();
-        if (!results.length) { box.innerHTML = '<div class="search__empty">No matching books</div>'; return open(); }
+        if (!results.length) { box.innerHTML = '<div class="search__empty">' + (window.Calibrary && Calibrary.t ? Calibrary.t("search.none") : "No matching books") + "</div>"; return open(); }
         box.innerHTML = results.map(function (b) {
           return '<a role="option" href="' + home + "book/" + b.id + '/">' +
             '<span class="search__result-t">' + esc(b.t) + "</span>" +
@@ -122,7 +122,7 @@
       c.hidden = !ok;
       if (ok) shown++;
     });
-    if (count) count.textContent = shown + (shown === 1 ? " book" : " books");
+    if (count) count.textContent = (window.Calibrary && Calibrary.t) ? Calibrary.t("count.books", { n: shown }) : (shown + " books");
     if (empty) empty.hidden = shown !== 0;
   }
 
@@ -147,6 +147,7 @@
   var urlQ = new URLSearchParams(location.search).get("q");
   if (urlQ && qInput) { qInput.value = urlQ; }
   apply();
+  document.addEventListener("calibrary:lang", apply);   // re-localize the count
 })();
 
 // ---- shared namespace ------------------------------------------------
@@ -258,8 +259,12 @@ Calibrary.bookmarks = (function () {
     var saved = Calibrary.bookmarks.has(btn.getAttribute("data-bookmark"));
     btn.setAttribute("aria-pressed", saved ? "true" : "false");
     btn.classList.toggle("is-saved", saved);
-    var t = btn.querySelector("[data-bm-text]");
-    if (t) t.textContent = saved ? "Saved for later" : "Read next";
+    var el = btn.querySelector("[data-bm-text]");
+    if (el) {
+      var key = saved ? "bm.saved" : "bm.readnext";
+      el.setAttribute("data-i18n", key);
+      el.textContent = Calibrary.t ? Calibrary.t(key) : (saved ? "Saved for later" : "Read next");
+    }
   }
   Calibrary.wireBookmarks = function (scope) {
     (scope || document).querySelectorAll("[data-bookmark]").forEach(function (btn) {
@@ -311,10 +316,13 @@ Calibrary.bookmarks = (function () {
     var books = await loadBooks();
     grid.innerHTML = ids.map(function (id) { var b = books[id]; return b ? card(b) : ""; }).join("");
     Calibrary.wireBookmarks(grid);
+    if (Calibrary.applyI18n) Calibrary.applyI18n(grid);
     Calibrary.revealCovers(grid);
   }
+  function countText(n) { return Calibrary.t ? Calibrary.t("count.books", { n: n }) : (n + " books"); }
 
   Calibrary.renderReadNext = async function () {
+    if (Calibrary.i18nReady) { try { await Calibrary.i18nReady; } catch (e) {} }
     var ids = Calibrary.bookmarks.list();
     var homeSec = document.querySelector("[data-home-readnext]");
     if (homeSec) {
@@ -327,7 +335,7 @@ Calibrary.bookmarks = (function () {
       var fgrid = full.querySelector("[data-readnext-grid]");
       var empty = full.querySelector("[data-readnext-empty]");
       var cnt = document.querySelector("[data-readnext-count]");   // lives in the page header
-      if (cnt) cnt.textContent = ids.length + (ids.length === 1 ? " book" : " books");
+      if (cnt) cnt.textContent = countText(ids.length);
       if (!ids.length) { if (empty) empty.hidden = false; if (fgrid) fgrid.innerHTML = ""; }
       else { if (empty) empty.hidden = true; await fill(fgrid, ids); }
     }
@@ -340,6 +348,10 @@ Calibrary.bookmarks = (function () {
   document.addEventListener("calibrary:bookmarks", function () {
     document.querySelectorAll("[data-bookmark]").forEach(reflect);
     Calibrary.refreshBadge();
+    Calibrary.renderReadNext();
+  });
+  document.addEventListener("calibrary:lang", function () {
+    document.querySelectorAll("[data-bookmark]").forEach(reflect);
     Calibrary.renderReadNext();
   });
 })();

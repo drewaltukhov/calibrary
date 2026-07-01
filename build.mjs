@@ -235,9 +235,14 @@ for (const [from, to] of [
   ["src/crypto.js", "crypto.js"],
   ["src/boot.js", "boot.js"],
   ["src/login.js", "login.js"],
+  ["src/i18n.js", "i18n.js"],
   ["node_modules/epubjs/dist/epub.min.js", "epub.min.js"],
   ["node_modules/jszip/dist/jszip.min.js", "jszip.min.js"],
+  ["node_modules/node-forge/dist/forge.min.js", "forge.min.js"],
 ]) copyIf(path.join(__dir, from), path.join(assetsOut, to));
+
+// translation dictionaries
+for (const l of ["en", "ru"]) copyIf(path.join(__dir, "src/i18n", `${l}.json`), path.join(assetsOut, "i18n", `${l}.json`));
 
 // Encrypt covers + book files to <id>.<ext>.enc (no plaintext leaves the build).
 function encFile(from, to) {
@@ -297,7 +302,7 @@ const NAV = [
 function searchForm(root, extraClass = "") {
   return `<form class="search ${extraClass}" role="search" data-jump="${root}books/" data-search-form autocomplete="off">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-    <input type="search" name="q" placeholder="Search by title or author…" aria-label="Search books" enterkeyhint="search" autocomplete="off"
+    <input type="search" name="q" placeholder="Search by title or author…" data-i18n-ph="search.ph" aria-label="Search books" data-i18n-al="search.aria" enterkeyhint="search" autocomplete="off"
       role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${extraClass ? "sr-h" : "sr-m"}">
     <div class="search__results" data-search-results id="${extraClass ? "sr-h" : "sr-m"}" role="listbox" hidden></div>
   </form>`;
@@ -311,16 +316,24 @@ const bookMark = (cls) =>
     <path d="M7 6.8h6M7 10.3h6M7 13.8h4.4" stroke="#fff" stroke-opacity="0.55" stroke-width="1" stroke-linecap="round"/>
   </svg>`;
 
+const NAV_KEY = { Books: "nav.books", Authors: "nav.authors", Series: "nav.series", Genres: "nav.genres" };
+function langSel() {
+  return `<div class="langsel" role="group" aria-label="Language">
+    <button type="button" data-lang="en">EN</button>
+    <button type="button" data-lang="ru">RU</button>
+  </div>`;
+}
 function header(root, active) {
-  const readNext = (cur) =>
-    `<a href="${root}read-next/"${active === "Read Next" ? ' aria-current="page"' : ""}>Read Next<span class="nav__badge" data-bm-count hidden>0</span></a>`;
+  const readNext =
+    `<a href="${root}read-next/"${active === "Read Next" ? ' aria-current="page"' : ""}><span data-i18n="nav.readnext">Read Next</span><span class="nav__badge" data-bm-count hidden>0</span></a>`;
   const links = NAV.map(([label, href]) =>
-    `<a href="${root}${href}"${active === label ? ' aria-current="page"' : ""}>${label}</a>`).join("") + readNext();
+    `<a href="${root}${href}"${active === label ? ' aria-current="page"' : ""} data-i18n="${NAV_KEY[label]}">${label}</a>`).join("") + readNext;
   const mlinks = links;
   return `<header class="site-header">
     <div class="wrap site-header__inner">
       <a class="brand" href="${root}" aria-label="Calibrary home">${bookMark("brand__mark")}<span class="brand__name">Cali<b>brary</b></span></a>
       <nav class="nav" aria-label="Primary">${links}</nav>
+      ${langSel()}
       ${searchForm(root, "search--header")}
       <button class="menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="mnav">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -332,8 +345,8 @@ function header(root, active) {
 
 function footer(root) {
   return `<footer class="site-footer"><div class="wrap">
-    <span>${SITE_NAME} · ${books.length} volumes · generated from a Calibre library</span>
-    <span><a href="${root}books/">Browse all</a></span>
+    <span>${SITE_NAME} · <span data-i18n="footer.summary" data-n="${books.length}">${books.length} volumes · generated from a Calibre library</span></span>
+    <span><a href="${root}books/" data-i18n="footer.browse">Browse all</a></span>
   </div></footer>`;
 }
 
@@ -355,6 +368,7 @@ function layout({ title, description, root, active, body, bodyClass = "", head =
 <link rel="stylesheet" href="${root}assets/theme.css">
 ${calCfg(root)}
 <script src="${root}assets/crypto.js"></script>
+<script src="${root}assets/i18n.js"></script>
 ${head}
 </head>
 <body${bodyClass ? ` class="${bodyClass}"` : ""}>
@@ -417,43 +431,43 @@ function grid(list, root, opts) {
     `<a class="chip" href="${root}series/${s.id}/">${esc(s.name)}<b>${s.books.length}</b></a>`).join("");
 
   const genreChips = genres.slice(0, 25).map((g) =>
-    `<a class="chip chip--genre" href="${root}genre/${g.id}/">${esc(genreLabel(g.name))}<b>${g.books.length}</b></a>`).join("");
+    `<a class="chip chip--genre" href="${root}genre/${g.id}/"><span data-i18n-genre="${attr(g.name)}">${esc(genreLabel(g.name))}</span><b>${g.books.length}</b></a>`).join("");
 
   const body = `
   <section class="hero wrap">
-    <p class="eyebrow">Personal library · established from Calibre</p>
-    <h1 class="hero__title">Books for the <em>small hours</em>, shelved and lit.</h1>
-    <p class="hero__lead">${books.length} volumes — science fiction, fantasy, detective and the odd classic — browsable by author, series, genre or title. Read them here or take them with you.</p>
+    <p class="eyebrow" data-i18n="home.eyebrow">Personal library · established from Calibre</p>
+    <h1 class="hero__title" data-i18n-html="home.herotitle">Books for the <em>small hours</em>, shelved and lit.</h1>
+    <p class="hero__lead" data-i18n="home.herolead" data-n="${books.length}">${books.length} volumes — science fiction, fantasy, detective and the odd classic — browsable by author, series, genre or title. Read them here or take them with you.</p>
     <div class="stats">
-      <a class="stat" href="${root}books/"><b>${books.length}</b><span>Volumes</span></a>
-      <a class="stat" href="${root}authors/"><b>${authors.length}</b><span>Authors</span></a>
-      <a class="stat" href="${root}series/"><b>${seriesList.length}</b><span>Series</span></a>
-      <a class="stat" href="${root}genres/"><b>${genres.length}</b><span>Genres</span></a>
+      <a class="stat" href="${root}books/"><b>${books.length}</b><span data-i18n="stat.volumes">Volumes</span></a>
+      <a class="stat" href="${root}authors/"><b>${authors.length}</b><span data-i18n="stat.authors">Authors</span></a>
+      <a class="stat" href="${root}series/"><b>${seriesList.length}</b><span data-i18n="stat.series">Series</span></a>
+      <a class="stat" href="${root}genres/"><b>${genres.length}</b><span data-i18n="stat.genres">Genres</span></a>
     </div>
   </section>
 
   <section class="section wrap" data-home-readnext hidden>
-    <div class="section__head"><h2>Read next</h2><a class="section__more" href="${root}read-next/">Your queue →</a></div>
+    <div class="section__head"><h2 data-i18n="home.readnext">Read next</h2><a class="section__more" href="${root}read-next/" data-i18n="home.queue">Your queue →</a></div>
     <div class="grid" data-readnext-grid></div>
   </section>
 
   <section class="section wrap">
-    <div class="section__head"><h2>Recently shelved</h2><a class="section__more" href="${root}books/">All books →</a></div>
+    <div class="section__head"><h2 data-i18n="home.recent">Recently shelved</h2><a class="section__more" href="${root}books/" data-i18n="home.allbooks">All books →</a></div>
     ${grid(recent, root)}
   </section>
 
   <section class="section--tight wrap">
-    <div class="section__head"><h2>Series</h2><a class="section__more" href="${root}series/">All series →</a></div>
+    <div class="section__head"><h2 data-i18n="home.seriessec">Series</h2><a class="section__more" href="${root}series/" data-i18n="home.allseries">All series →</a></div>
     <div class="chips">${seriesRail}</div>
   </section>
 
   <section class="section wrap">
-    <div class="section__head"><h2>Genres</h2><a class="section__more" href="${root}genres/">All genres →</a></div>
+    <div class="section__head"><h2 data-i18n="home.genressec">Genres</h2><a class="section__more" href="${root}genres/" data-i18n="home.allgenres">All genres →</a></div>
     <div class="chips">${genreChips}</div>
   </section>`;
 
   writePage("", layout({
-    title: `${SITE_NAME} — ${TAGLINE}`,
+    title: `${SITE_NAME} - Home`,
     description: `A personal library of ${books.length} ebooks — browse by author, series, genre or title, and read in your browser.`,
     root, active: "", body,
   }));
@@ -465,36 +479,36 @@ function grid(list, root, opts) {
 (function booksIndex() {
   const root = "../";
   const genreOptions = genres.map((g) =>
-    `<option value="${g.id}">${esc(genreLabel(g.name))} (${g.books.length})</option>`).join("");
+    `<option value="${g.id}" data-i18n-genre="${attr(g.name)}">${esc(genreLabel(g.name))}</option>`).join("");
   const body = `
   <div class="page-head wrap">
-    <p class="breadcrumb"><a href="${root}">Home</a><span>/</span>Books</p>
-    <h1>All books</h1>
+    <p class="breadcrumb"><a href="${root}" data-i18n="crumb.home">Home</a><span>/</span><span data-i18n="books.h1">All books</span></p>
+    <h1 data-i18n="books.h1">All books</h1>
   </div>
   <section class="section--tight wrap">
     <div class="toolbar">
       <form class="search" role="search" onsubmit="return false">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="search" data-filter-q placeholder="Filter by title, author, series…" aria-label="Filter books" enterkeyhint="search">
+        <input type="search" data-filter-q placeholder="Filter by title, author, series…" data-i18n-ph="books.filterph" aria-label="Filter books" data-i18n-al="books.filteraria" enterkeyhint="search">
       </form>
-      <label class="field">Genre
-        <select data-filter-genre aria-label="Filter by genre"><option value="">All</option>${genreOptions}</select>
+      <label class="field"><span data-i18n="books.genre">Genre</span>
+        <select data-filter-genre aria-label="Filter by genre"><option value="" data-i18n="books.all">All</option>${genreOptions}</select>
       </label>
-      <label class="field">Sort
+      <label class="field"><span data-i18n="books.sortlabel">Sort</span>
         <select data-sort aria-label="Sort books">
-          <option value="title">Title A–Z</option>
-          <option value="author">Author A–Z</option>
-          <option value="newest">Recently added</option>
-          <option value="year">Publication year</option>
+          <option value="title" data-i18n="sort.title">Title A–Z</option>
+          <option value="author" data-i18n="sort.author">Author A–Z</option>
+          <option value="newest" data-i18n="sort.newest">Recently added</option>
+          <option value="year" data-i18n="sort.year">Publication year</option>
         </select>
       </label>
-      <span class="result-count" data-count>${books.length} books</span>
+      <span class="result-count" data-count data-i18n="count.books" data-n="${books.length}">${books.length} books</span>
     </div>
     <div class="grid" data-filterable>${books.map((b) => bookCard(b, root)).join("")}</div>
-    <p class="empty-state" data-empty hidden>Nothing on this shelf matches. Try fewer words.</p>
+    <p class="empty-state" data-empty hidden data-i18n="books.empty">Nothing on this shelf matches. Try fewer words.</p>
   </section>`;
   writePage("books", layout({
-    title: `All books · ${SITE_NAME}`,
+    title: `${SITE_NAME} - All books`,
     description: `Browse and filter all ${books.length} books by title, author, series and genre.`,
     root, active: "Books", body,
   }));
@@ -513,9 +527,9 @@ const chevBtn = (dir, label) => {
   return `<button class="carousel__btn carousel__btn--${dir}" data-carousel-${dir} aria-label="${label}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${d}"/></svg></button>`;
 };
-function relatedRail(title, list, root) {
+function relatedRail(prefixKey, prefixEn, name, list, root) {
   if (!list.length) return "";
-  return `<div class="book__section"><h2>${esc(title)}</h2>
+  return `<div class="book__section"><h2><span data-i18n="${prefixKey}">${prefixEn}</span> ${esc(name)}</h2>
     <div class="carousel" data-carousel>
       ${chevBtn("prev", "Scroll back")}
       <div class="grid grid--rail carousel__track" data-carousel-track>${list.map((b) => bookCard(b, root, { showIndex: true })).join("")}</div>
@@ -527,17 +541,20 @@ for (const b of books) {
   const root = "../../";
   const by = b.authors.map((a) => `<a href="${root}author/${a.id}/">${esc(a.name)}</a>`).join(", ") || "Unknown";
   const genreChips = b.genres.map((g) =>
-    `<a class="chip chip--genre" href="${root}genre/${g.id}/">${esc(genreLabel(g.name))}</a>`).join("");
+    `<a class="chip chip--genre" href="${root}genre/${g.id}/" data-i18n-genre="${attr(g.name)}">${esc(genreLabel(g.name))}</a>`).join("");
+  const langKey = { rus: "langname.rus", eng: "langname.eng", ukr: "langname.ukr" };
+  const langVal = b.langs.map((l) => langKey[l]
+    ? `<span data-i18n="${langKey[l]}">${esc(LANG_LABELS[l] || l)}</span>` : esc(LANG_LABELS[l] || l)).join(", ");
   const facts = [];
-  if (b.year) facts.push(["Published", b.year]);
-  if (b.langs.length) facts.push(["Language", b.langs.map((l) => LANG_LABELS[l] || l).join(", ")]);
-  if (b.fmtList.length) facts.push(["Formats", b.fmtList.map((f) => f.replace("ORIGINAL_", "")).filter((x,i,a)=>a.indexOf(x)===i).join(", ")]);
-  if (b.isbn) facts.push(["ISBN", b.isbn]);
-  const factsHtml = facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  if (b.year) facts.push(["book.published", "Published", String(b.year)]);
+  if (b.langs.length) facts.push(["book.language", "Language", langVal]);
+  if (b.fmtList.length) facts.push(["book.formats", "Formats", esc(b.fmtList.map((f) => f.replace("ORIGINAL_", "")).filter((x,i,a)=>a.indexOf(x)===i).join(", "))]);
+  if (b.isbn) facts.push(["book.isbn", "ISBN", esc(b.isbn)]);
+  const factsHtml = facts.map(([k, en, v]) => `<dt data-i18n="${k}">${en}</dt><dd>${v}</dd>`).join("");
 
   const actions = [];
-  if (b.hasFile && b.isEpub) actions.push(`<a class="btn btn--primary" href="${root}read/${b.id}/">${readerIcon.book} Read online</a>`);
-  if (b.hasFile) actions.push(`<button type="button" class="btn" data-download="${root}files/${b.id}.${b.ext}.enc" data-name="${attr(b.dl.name)}.${b.ext}">${readerIcon.dl} Download ${b.ext.toUpperCase()}</button>`);
+  if (b.hasFile && b.isEpub) actions.push(`<a class="btn btn--primary" href="${root}read/${b.id}/">${readerIcon.book} <span data-i18n="book.read">Read online</span></a>`);
+  if (b.hasFile) actions.push(`<button type="button" class="btn" data-download="${root}files/${b.id}.${b.ext}.enc" data-name="${attr(b.dl.name)}.${b.ext}">${readerIcon.dl} <span data-i18n="book.download">Download</span> ${b.ext.toUpperCase()}</button>`);
   actions.push(`<button type="button" class="btn btn--bookmark" data-bookmark="${b.id}" aria-pressed="false">${BM_ICON}<span data-bm-text>Read next</span></button>`);
 
   const seriesSiblings = b.series
@@ -561,23 +578,23 @@ for (const b of books) {
   <article class="book wrap">
     <aside class="book__aside">
       <img class="book__cover" src="${BLANK}" data-enc="${root}covers/${b.id}.jpg.enc" alt="Cover of ${attr(b.title)}" style="--spine:${b.spine}">
-      <div class="book__actions">${actions.join("") || '<span class="result-count">No file available</span>'}</div>
+      <div class="book__actions">${actions.join("") || '<span class="result-count" data-i18n="book.nofile">No file available</span>'}</div>
     </aside>
     <div class="book__main">
-      <p class="breadcrumb"><a href="${root}">Home</a><span>/</span><a href="${root}books/">Books</a></p>
+      <p class="breadcrumb"><a href="${root}" data-i18n="crumb.home">Home</a><span>/</span><a href="${root}books/" data-i18n="nav.books">Books</a></p>
       <h1 class="book__title">${esc(b.title)}</h1>
-      <p class="book__byline">by ${by}</p>
-      ${b.series ? `<a class="book__series" href="${root}series/${b.series.id}/">${esc(b.series.name)} · Book ${fmtIdx(b.series_index)}</a>` : ""}
-      ${b.comment ? `<div class="book__section"><h2>About</h2><div class="prose">${sanitize(b.comment)}</div></div>` : ""}
-      ${genreChips ? `<div class="book__section"><h2>Genres</h2><div class="chips">${genreChips}</div></div>` : ""}
-      ${factsHtml ? `<div class="book__section"><h2>Details</h2><dl class="facts">${factsHtml}</dl></div>` : ""}
-      ${relatedRail(b.series ? `More in ${b.series.name}` : "", seriesSiblings, root)}
-      ${relatedRail(b.authors[0] ? `More by ${b.authors[0].name}` : "", authorOthers, root)}
+      <p class="book__byline"><span data-i18n="book.by">by</span> ${by}</p>
+      ${b.series ? `<a class="book__series" href="${root}series/${b.series.id}/">${esc(b.series.name)} · <span data-i18n="book.bookno">Book</span> ${fmtIdx(b.series_index)}</a>` : ""}
+      ${b.comment ? `<div class="book__section"><h2 data-i18n="book.about">About</h2><div class="prose">${sanitize(b.comment)}</div></div>` : ""}
+      ${genreChips ? `<div class="book__section"><h2 data-i18n="book.genres">Genres</h2><div class="chips">${genreChips}</div></div>` : ""}
+      ${factsHtml ? `<div class="book__section"><h2 data-i18n="book.details">Details</h2><dl class="facts">${factsHtml}</dl></div>` : ""}
+      ${relatedRail("book.morein", "More in", b.series ? b.series.name : "", seriesSiblings, root)}
+      ${relatedRail("book.moreby", "More by", b.authors[0] ? b.authors[0].name : "", authorOthers, root)}
     </div>
   </article>`;
 
   writePage(`book/${b.id}`, layout({
-    title: `${b.title} — ${b.authors.map((a) => a.name).join(", ") || SITE_NAME}`,
+    title: `${SITE_NAME} - ${b.title}`,
     description: (b.comment ? b.comment.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 155)
       : `${b.title}${b.authors[0] ? " by " + b.authors[0].name : ""} — read online or download.`),
     root, active: "Books", body,
@@ -599,23 +616,24 @@ for (const b of books) {
     <button class="reader-nav reader-nav--prev" data-prev aria-label="Previous page" style="--dir:90deg">${chev("M15 18l-6-6 6-6")}</button>
     <div id="viewer"></div>
     <button class="reader-nav reader-nav--next" data-next aria-label="Next page" style="--dir:270deg">${chev("M9 6l6 6-6 6")}</button>
-    <div class="reader-loading"><span>Opening ${esc(b.title)}…</span></div>`;
+    <div class="reader-loading"><span><span data-i18n="reader.opening">Opening</span> ${esc(b.title)}…</span></div>`;
     const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Reading: ${esc(b.title)} — ${SITE_NAME}</title>
+<title>${SITE_NAME} - Reading: ${esc(b.title)}</title>
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#f3eee2">
 <link rel="icon" href="${rroot}favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="${rroot}assets/theme.css">
 ${calCfg(rroot)}
+<script src="${rroot}assets/crypto.js"></script>
+<script src="${rroot}assets/i18n.js"></script>
 </head>
 <body class="reader-body" data-epub="${rroot}files/${b.id}.epub.enc" data-book="${b.id}">
 ${readerBody}
-<script src="${rroot}assets/crypto.js"></script>
 <script src="${rroot}assets/jszip.min.js"></script>
 <script src="${rroot}assets/epub.min.js"></script>
 <script src="${rroot}assets/reader.js"></script>
@@ -628,29 +646,31 @@ ${readerBody}
 // ============================================================
 // 7. Author / Series / Genre pages
 // ============================================================
-function collectionPage(kind, item, list, { root, active, subtitle, opts }) {
-  const body = `
+function collectionPage(kind, item, list, { root, crumbKey, active, subKey, n, subEn, i18nGenre, opts }) {
+  const h1 = i18nGenre
+    ? `<h1><span data-i18n-genre="${attr(i18nGenre)}">${esc(item.title)}</span></h1>`
+    : `<h1>${esc(item.title)}</h1>`;
+  return `
   <div class="page-head wrap">
-    <p class="breadcrumb"><a href="${root}">Home</a><span>/</span><a href="${root}${kind}s/">${active}</a></p>
-    <h1>${esc(item.title)}</h1>
-    ${subtitle ? `<p>${subtitle}</p>` : ""}
+    <p class="breadcrumb"><a href="${root}" data-i18n="crumb.home">Home</a><span>/</span><a href="${root}${kind}s/" data-i18n="${crumbKey}">${active}</a></p>
+    ${h1}
+    <p data-i18n="${subKey}" data-n="${n}">${subEn}</p>
   </div>
   <section class="section--tight wrap">
     ${grid(list, root, opts)}
   </section>`;
-  return body;
 }
 
 for (const a of authors) {
   const root = "../../";
   const list = a.books.map((id) => bookById[id]).sort((x, y) => (x.sort || x.title).localeCompare(y.sort || y.title));
   writePage(`author/${a.id}`, layout({
-    title: `${a.name} · ${SITE_NAME}`,
+    title: `${SITE_NAME} - ${a.name}`,
     description: `${list.length} book${list.length === 1 ? "" : "s"} by ${a.name} in the library.`,
     root, active: "Authors",
     body: collectionPage("author", { title: a.name }, list, {
-      root, active: "Authors",
-      subtitle: `${list.length} book${list.length === 1 ? "" : "s"} in the library.`,
+      root, crumbKey: "nav.authors", active: "Authors", subKey: "sub.author", n: list.length,
+      subEn: `${list.length} book${list.length === 1 ? "" : "s"} in the library.`,
     }),
   }));
 }
@@ -659,12 +679,12 @@ for (const s of seriesList) {
   const root = "../../";
   const list = s.books.map((id) => bookById[id]);
   writePage(`series/${s.id}`, layout({
-    title: `${s.name} (series) · ${SITE_NAME}`,
+    title: `${SITE_NAME} - ${s.name} (series)`,
     description: `The ${s.name} series — ${list.length} book${list.length === 1 ? "" : "s"}, in reading order.`,
     root, active: "Series",
     body: collectionPage("serie", { title: s.name }, list, {
-      root, active: "Series",
-      subtitle: `${list.length} book${list.length === 1 ? "" : "s"}, shown in series order.`,
+      root, crumbKey: "nav.series", active: "Series", subKey: "sub.seriesorder", n: list.length,
+      subEn: `${list.length} book${list.length === 1 ? "" : "s"}, shown in series order.`,
       opts: { showIndex: true },
     }),
   }));
@@ -674,12 +694,12 @@ for (const g of genres) {
   const root = "../../";
   const list = g.books.map((id) => bookById[id]).sort((x, y) => (x.sort || x.title).localeCompare(y.sort || y.title));
   writePage(`genre/${g.id}`, layout({
-    title: `${genreLabel(g.name)} · ${SITE_NAME}`,
+    title: `${SITE_NAME} - ${genreLabel(g.name)}`,
     description: `${list.length} ${genreLabel(g.name)} book${list.length === 1 ? "" : "s"} in the library.`,
     root, active: "Genres",
     body: collectionPage("genre", { title: genreLabel(g.name) }, list, {
-      root, active: "Genres",
-      subtitle: `${list.length} book${list.length === 1 ? "" : "s"}.`,
+      root, crumbKey: "nav.genres", active: "Genres", subKey: "sub.genre", n: list.length,
+      subEn: `${list.length} book${list.length === 1 ? "" : "s"}.`, i18nGenre: g.name,
     }),
   }));
 }
@@ -687,51 +707,55 @@ for (const g of genres) {
 // ============================================================
 // 8. Directory index pages (authors / series / genres)
 // ============================================================
-function dirIndex(kind, active, items, root) {
-  const rows = items.map((it) =>
-    `<a href="${root}${it.href}"><span class="dir__name">${esc(it.name)}</span><span class="dir__count">${it.count} book${it.count === 1 ? "" : "s"}</span></a>`).join("");
+function dirIndex(kind, active, headKey, introKey, items, root) {
+  const rows = items.map((it) => {
+    const name = it.genreCode
+      ? `<span class="dir__name" data-i18n-genre="${attr(it.genreCode)}">${esc(it.name)}</span>`
+      : `<span class="dir__name">${esc(it.name)}</span>`;
+    return `<a href="${root}${it.href}">${name}<span class="dir__count" data-i18n="count.books" data-n="${it.count}">${it.count} book${it.count === 1 ? "" : "s"}</span></a>`;
+  }).join("");
   return `
   <div class="page-head wrap">
-    <p class="breadcrumb"><a href="${root}">Home</a><span>/</span>${active}</p>
-    <h1>${active}</h1>
-    <p>${items.length} ${active.toLowerCase()} across the collection.</p>
+    <p class="breadcrumb"><a href="${root}" data-i18n="crumb.home">Home</a><span>/</span><span data-i18n="${headKey}">${active}</span></p>
+    <h1 data-i18n="${headKey}">${active}</h1>
+    <p data-i18n="${introKey}" data-n="${items.length}">${items.length} ${active.toLowerCase()} across the collection.</p>
   </div>
   <section class="section--tight wrap"><div class="dir">${rows}</div></section>`;
 }
 
 writePage("authors", layout({
-  title: `Authors · ${SITE_NAME}`, description: `All ${authors.length} authors in the library.`,
+  title: `${SITE_NAME} - Authors`, description: `All ${authors.length} authors in the library.`,
   root: "../", active: "Authors",
-  body: dirIndex("author", "Authors",
+  body: dirIndex("author", "Authors", "nav.authors", "idx.authors",
     authors.map((a) => ({ name: a.name, count: a.books.length, href: `author/${a.id}/` })), "../"),
 }));
 writePage("series", layout({
-  title: `Series · ${SITE_NAME}`, description: `All ${seriesList.length} series in the library.`,
+  title: `${SITE_NAME} - Series`, description: `All ${seriesList.length} series in the library.`,
   root: "../", active: "Series",
-  body: dirIndex("series", "Series",
+  body: dirIndex("series", "Series", "nav.series", "idx.series",
     seriesList.map((s) => ({ name: s.name, count: s.books.length, href: `series/${s.id}/` })), "../"),
 }));
 writePage("genres", layout({
-  title: `Genres · ${SITE_NAME}`, description: `All ${genres.length} genres in the library.`,
+  title: `${SITE_NAME} - Genres`, description: `All ${genres.length} genres in the library.`,
   root: "../", active: "Genres",
-  body: dirIndex("genre", "Genres",
-    genres.map((g) => ({ name: genreLabel(g.name), count: g.books.length, href: `genre/${g.id}/` })), "../"),
+  body: dirIndex("genre", "Genres", "nav.genres", "idx.genres",
+    genres.map((g) => ({ name: genreLabel(g.name), count: g.books.length, href: `genre/${g.id}/`, genreCode: g.name })), "../"),
 }));
 
 // ---- Read Next (client-rendered from bookmarks) --------------------
 writePage("read-next", layout({
-  title: `Read Next · ${SITE_NAME}`,
+  title: `${SITE_NAME} - Read Next`,
   description: "Books you've saved to read next.",
   root: "../", active: "Read Next",
   body: `
   <div class="page-head wrap">
-    <p class="breadcrumb"><a href="../">Home</a><span>/</span>Read Next</p>
-    <h1>Read next</h1>
-    <p>Books you’ve set aside for later. <span class="result-count" data-readnext-count></span></p>
+    <p class="breadcrumb"><a href="../" data-i18n="crumb.home">Home</a><span>/</span><span data-i18n="nav.readnext">Read Next</span></p>
+    <h1 data-i18n="readnext.h1">Read next</h1>
+    <p><span data-i18n="readnext.intro">Books you’ve set aside for later.</span> <span class="result-count" data-readnext-count></span></p>
   </div>
   <section class="section--tight wrap" data-readnext-full>
     <div class="grid" data-readnext-grid></div>
-    <p class="empty-state" data-readnext-empty hidden>Nothing saved yet — tap the bookmark on any cover, or “Read next” on a book’s page, to build your queue.</p>
+    <p class="empty-state" data-readnext-empty hidden data-i18n="readnext.empty">Nothing saved yet — tap the bookmark on any cover, or “Read next” on a book’s page, to build your queue.</p>
   </section>`,
 }));
 
@@ -749,7 +773,7 @@ const loginHtml = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Unlock · ${SITE_NAME}</title>
+<title>${SITE_NAME} - Unlock</title>
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#f3eee2">
 <link rel="icon" href="${loginRoot}favicon.svg" type="image/svg+xml">
@@ -759,21 +783,23 @@ const loginHtml = `<!doctype html>
 <link rel="stylesheet" href="${loginRoot}assets/theme.css">
 ${calCfg(loginRoot)}
 <script src="${loginRoot}assets/crypto.js"></script>
+<script src="${loginRoot}assets/i18n.js"></script>
 </head>
 <body class="login-body">
 <main class="login">
   ${bookMark("login__mark")}
   <h1>Cali<b>brary</b></h1>
-  <p>A private collection. Enter the passphrase to unlock the stacks.</p>
+  <p data-i18n="login.tagline">A private collection. Enter the passphrase to unlock the stacks.</p>
   <form class="login__form" id="login-form" autocomplete="on">
     <label class="login__field">
       ${lockSvg}
-      <input type="password" id="pw" name="password" placeholder="Passphrase" aria-label="Passphrase" autocomplete="current-password" autofocus>
+      <input type="password" id="pw" name="password" placeholder="Passphrase" data-i18n-ph="login.ph" aria-label="Passphrase" data-i18n-al="login.ph" autocomplete="current-password" autofocus>
     </label>
     <p class="login__error" role="alert" hidden></p>
-    <button type="submit">Unlock</button>
+    <button type="submit" data-i18n="login.unlock">Unlock</button>
   </form>
-  <p class="login__note">Nothing loads until it's decrypted in your browser.</p>
+  <p class="login__note" data-i18n="login.note">Nothing loads until it's decrypted in your browser.</p>
+  ${langSel()}
 </main>
 <script src="${loginRoot}assets/login.js"></script>
 </body>
@@ -790,20 +816,22 @@ const notFound = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Not found · ${SITE_NAME}</title>
+<title>${SITE_NAME} - Not found</title>
 <meta name="color-scheme" content="light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,340..500&family=IBM+Plex+Mono:wght@400&display=swap">
 <link rel="stylesheet" href="/assets/theme.css">
+<script>window.CAL={home:"/"};</script>
+<script src="/assets/i18n.js"></script>
 </head>
 <body class="login-body">
 <main class="login">
   <p class="eyebrow">404</p>
-  <h1>Off the <b>shelf</b></h1>
-  <p>That page isn't here. It may have been re-catalogued.</p>
-  <p class="login__note"><a href="/">Return to the library →</a></p>
+  <h1 data-i18n-html="notfound.h1">Off the <b>shelf</b></h1>
+  <p data-i18n="notfound.body">That page isn't here. It may have been re-catalogued.</p>
+  <p class="login__note"><a href="/" data-i18n="notfound.back">Return to the library →</a></p>
 </main>
 </body>
 </html>`;
