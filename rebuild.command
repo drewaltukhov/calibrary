@@ -8,7 +8,7 @@
 # Folder that contains metadata.db. Either a name next to this script
 # (default "Calibre") or a full path, e.g.
 #   CALIBRE_DIR="/Users/drew/Books/Calibre Library"
-CALIBRE_DIR="Calibre"
+CALIBRE_DIR="/Users/drew/Files/Calibre Library"
 
 # Mirror the finished site to a local server share after building.
 # Leave empty ("") to skip. Skipped automatically if the share isn't mounted.
