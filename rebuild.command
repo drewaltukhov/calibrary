@@ -29,6 +29,12 @@ if ! command -v node >/dev/null 2>&1; then
   read -n 1 -s -r -p "Press any key to close…"; echo; exit 1
 fi
 
+# Install dependencies on first run / after a git pull that added one (e.g. sharp).
+if [ ! -d node_modules/sharp ]; then
+  echo "Installing dependencies (first run or updated)…"
+  npm install || { echo "✗ npm install failed."; read -n 1 -s -r -p "Press any key to close…"; echo; exit 1; }
+fi
+
 node build.mjs
 status=$?
 

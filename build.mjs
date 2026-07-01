@@ -11,6 +11,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
 // Source Calibre library. Override with CALIBRE_DIR (set in rebuild.command);
@@ -289,16 +290,37 @@ function encFile(from, to) {
     return true;
   } catch (e) { return false; }
 }
+// Crop every cover to a uniform 2:3 JPEG before encrypting, so the generated
+// grid is perfectly regular and the payload stays small — source covers range
+// from ~200px to ~2000px wide. `fit: cover` centre-crops to fill (matching the
+// CSS `object-fit: cover`); falls back to the raw bytes if sharp can't decode.
+const COVER_W = 800, COVER_H = 1200;            // 2:3 aspect
+async function normalizedCover(file) {
+  const raw = fs.readFileSync(file);
+  try {
+    return await sharp(raw)
+      .rotate()                                 // honour EXIF orientation
+      .resize(COVER_W, COVER_H, { fit: "cover", position: "centre" })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+  } catch { return raw; }                       // degrade gracefully
+}
 let covers = 0, filesCopied = 0;
 for (const b of books) {
   const dir = path.join(SRC, b.path);
-  if (b.has_cover && encFile(path.join(dir, "cover.jpg"), path.join(OUT, "covers", `${b.id}.jpg.enc`))) covers++;
+  const cover = path.join(dir, "cover.jpg");
+  if (b.has_cover && fs.existsSync(cover)) {
+    const to = path.join(OUT, "covers", `${b.id}.jpg.enc`);
+    ensure(path.dirname(to));
+    fs.writeFileSync(to, encBytes(await normalizedCover(cover)));
+    covers++;
+  }
   if (b.dl) {
     const src = path.join(dir, `${b.dl.name}.${b.ext}`);
     if (encFile(src, path.join(OUT, "files", `${b.id}.${b.ext}.enc`))) { filesCopied++; b.hasFile = true; }
   }
 }
-console.log(`Encrypted ${covers} covers · ${filesCopied} book files`);
+console.log(`Normalized + encrypted ${covers} covers (${COVER_W}×${COVER_H}) · ${filesCopied} book files`);
 
 // Encrypted search index (title / author / series) for the header search.
 const searchIndex = books.map((b) => ({
