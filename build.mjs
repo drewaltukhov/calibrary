@@ -20,6 +20,8 @@ const OUT = path.join(__dir, "dist");
 const DB_PATH = path.join(SRC, "metadata.db");
 const SITE_NAME = "Calibrary";
 const TAGLINE = "A reading room for the small hours.";
+// Set true to re-enable the in-browser EPUB reader ("Read online" button + reader pages).
+const SHOW_READER = false;
 
 // ---- encryption (private library) -----------------------------------
 // The whole library is AES-GCM encrypted at rest. The passphrase comes
@@ -553,8 +555,8 @@ for (const b of books) {
   const factsHtml = facts.map(([k, en, v]) => `<dt data-i18n="${k}">${en}</dt><dd>${v}</dd>`).join("");
 
   const actions = [];
-  if (b.hasFile && b.isEpub) actions.push(`<a class="btn btn--primary" href="${root}read/${b.id}/">${readerIcon.book} <span data-i18n="book.read">Read online</span></a>`);
-  if (b.hasFile) actions.push(`<button type="button" class="btn" data-download="${root}files/${b.id}.${b.ext}.enc" data-name="${attr(b.dl.name)}.${b.ext}">${readerIcon.dl} <span data-i18n="book.download">Download</span> ${b.ext.toUpperCase()}</button>`);
+  if (SHOW_READER && b.hasFile && b.isEpub) actions.push(`<a class="btn btn--primary" href="${root}read/${b.id}/">${readerIcon.book} <span data-i18n="book.read">Read online</span></a>`);
+  if (b.hasFile) actions.push(`<button type="button" class="btn${SHOW_READER ? "" : " btn--primary"}" data-download="${root}files/${b.id}.${b.ext}.enc" data-name="${attr(b.dl.name)}.${b.ext}">${readerIcon.dl} <span data-i18n="book.download">Download</span> ${b.ext.toUpperCase()}</button>`);
   actions.push(`<button type="button" class="btn btn--bookmark" data-bookmark="${b.id}" aria-pressed="false">${BM_ICON}<span data-bm-text>Read next</span></button>`);
 
   const seriesSiblings = b.series
@@ -602,7 +604,7 @@ for (const b of books) {
   }));
 
   // ---- reader page ----
-  if (b.hasFile && b.isEpub) {
+  if (SHOW_READER && b.hasFile && b.isEpub) {
     const rroot = "../../";
     const chev = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${d}"/></svg>`;
     const readerBody = `

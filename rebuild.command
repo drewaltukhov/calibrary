@@ -48,7 +48,7 @@ if [ -n "$MIRROR_DEST" ]; then
   if [ -d "$MIRROR_VOL" ] && [ -w "$MIRROR_VOL" ]; then
     echo "Mirroring to $MIRROR_DEST …"
     mkdir -p "$MIRROR_DEST" 2>/dev/null
-    if rsync -a --delete --exclude '.DS_Store' dist/ "$MIRROR_DEST/"; then
+    if rsync -a --delete --delete-excluded --exclude '.DS_Store' dist/ "$MIRROR_DEST/"; then
       echo "✓ Mirrored to $MIRROR_DEST"
     else
       echo "✗ Mirror failed while copying — but ./dist is fine, upload it manually."
