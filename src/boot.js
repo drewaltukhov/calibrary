@@ -6,6 +6,19 @@
   var key = await CalCrypto.getKey();
   if (!key || !(await CalCrypto.verify(key))) {
     CalCrypto.clearKey();
+    // Self-heal: a service-worker-cached page from an older build can carry a
+    // stale salt/check that no key will ever verify, which would loop us
+    // between here and the login page forever. Purge caches once and reload so
+    // we come back on fresh, consistent pages, then fall through to login.
+    if (key && "caches" in window && !sessionStorage.getItem("cal:flushed")) {
+      try {
+        sessionStorage.setItem("cal:flushed", "1");
+        var names = await caches.keys();
+        await Promise.all(names.map(function (n) { return caches.delete(n); }));
+        location.reload();
+        return;
+      } catch (e) {}
+    }
     CalCrypto.redirectToLogin();
     return;
   }

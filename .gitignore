@@ -19,8 +19,9 @@ covers/
 files/
 cover.jpg
 
-# the library passphrase — never commit
+# the library passphrase + its stable salt — never commit
 library-password.txt
+library-salt.txt
 
 # os
 .DS_Store

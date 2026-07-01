@@ -50,7 +50,27 @@ function readPassword() {
 }
 const PASSWORD = readPassword();
 const ITERS = 150000;
-const SALT = crypto.randomBytes(16);
+// The salt MUST be stable across rebuilds. The client caches the derived key
+// (password+salt) in localStorage; if the salt changed every build, that key
+// would stop matching after each rebuild and — with pages cached by the
+// service worker across builds — trap the reader in an unlockable login loop.
+// So we generate one random salt and persist it (git-ignored, next to the
+// password). Same salt + same password ⇒ same key ⇒ old keys keep working and
+// old cached pages still decrypt. IVs stay random per-encryption, so GCM
+// security is unchanged; the salt is public in every page anyway.
+function readOrCreateSalt() {
+  const f = path.join(__dir, "library-salt.txt");
+  try {
+    if (fs.existsSync(f)) {
+      const b = Buffer.from(fs.readFileSync(f, "utf8").trim(), "base64");
+      if (b.length === 16) return b;
+    }
+  } catch (e) {}
+  const s = crypto.randomBytes(16);
+  try { fs.writeFileSync(f, s.toString("base64") + "\n"); } catch (e) {}
+  return s;
+}
+const SALT = readOrCreateSalt();
 const KEY = crypto.pbkdf2Sync(PASSWORD, SALT, ITERS, 32, "sha256");
 function encBytes(buf) {
   const iv = crypto.randomBytes(12);
@@ -386,8 +406,17 @@ fs.writeFileSync(path.join(OUT, "site.webmanifest"), JSON.stringify({
 // opens (and can decrypt already-cached pages) with no connection; pages you
 // haven't visited fall back to this offline page. No plaintext is ever stored
 // — only the encrypted assets the browser already downloaded. The cache name
-// is stamped with the per-build SALT, so every rebuild replaces stale caches.
-const SW_VERSION = SALT.toString("hex").slice(0, 12);
+// is a hash of the shell code, so it changes (and purges old caches) whenever
+// the HTML/CSS/JS changes — but NOT on every rebuild, which would needlessly
+// re-download the shell each time only the library content changed.
+const SW_VERSION = crypto.createHash("sha256")
+  .update(fs.readFileSync(path.join(__dir, "src/theme.css")))
+  .update(fs.readFileSync(path.join(__dir, "src/crypto.js")))
+  .update(fs.readFileSync(path.join(__dir, "src/boot.js")))
+  .update(fs.readFileSync(path.join(__dir, "src/app.js")))
+  .update(fs.readFileSync(path.join(__dir, "src/i18n.js")))
+  .update(fs.readFileSync(path.join(__dir, "src/login.js")))
+  .digest("hex").slice(0, 12);
 fs.writeFileSync(path.join(OUT, "offline.html"), `<!doctype html>
 <html lang="en">
 <head>
