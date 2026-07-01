@@ -1,0 +1,26 @@
+{
+  "name": "calibrary",
+  "version": "1.0.0",
+  "description": "Static book-browsing site generated from a Calibre library",
+  "main": "build.mjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "serve": "node --run build && cd dist && python3 -m http.server 8080"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drewaltukhov/calibrary.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/drewaltukhov/calibrary/issues"
+  },
+  "homepage": "https://github.com/drewaltukhov/calibrary#readme",
+  "dependencies": {
+    "epubjs": "^0.3.93",
+    "jszip": "^3.10.1"
+  }
+}

@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# generated output
+dist/
+
+# source Calibre library (large; keep out of git)
+Calibre/
+
+# book files & covers — never commit library content (belt-and-suspenders)
+*.epub
+*.fb2
+*.mobi
+*.azw
+*.azw3
+*.pdf
+*.enc
+covers/
+files/
+cover.jpg
+
+# the library passphrase — never commit
+library-password.txt
+
+# os
+.DS_Store
