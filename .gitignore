@@ -4,6 +4,9 @@ node_modules/
 # generated output
 dist/
 
+# generated demo library + its build (keep make-demo-library.mjs; drop artifacts)
+demo/
+
 # source Calibre library (large; keep out of git)
 Calibre/
 
@@ -25,3 +28,4 @@ library-salt.txt
 
 # os
 .DS_Store
+/notes
