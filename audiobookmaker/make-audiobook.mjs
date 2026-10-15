@@ -41,9 +41,10 @@ export function naturalSort(files) {
     path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: "base" }));
 }
 
-// "03 - The Storm.mp3" -> "The Storm"; "Track 07.mp3" -> "Track 07"
+// "03 - The Storm.mp3" -> "The Storm"; "Track 07.mp3" -> "Track 07"; "0007.mp3" -> "7"
 export function titleFromFilename(file) {
   const base = path.basename(file, path.extname(file)).replace(/_/g, " ").trim();
+  if (/^\d+$/.test(base)) return String(Number(base));
   const stripped = base.replace(/^\s*(?:disc\s*\d+\s*[-.]?\s*)?\d+\s*[-.)_:]*\s*/i, "").trim();
   return stripped || base;
 }

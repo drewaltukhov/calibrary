@@ -23,6 +23,7 @@ test("titleFromFilename strips track numbers", () => {
   assert.equal(titleFromFilename("/x/03 - The Storm.mp3"), "The Storm");
   assert.equal(titleFromFilename("/x/001_Prologue.mp3"), "Prologue");
   assert.equal(titleFromFilename("/x/12.mp3"), "12");
+  assert.equal(titleFromFilename("/x/0007.mp3"), "7");
   assert.equal(titleFromFilename("/x/Chapter 4.mp3"), "Chapter 4");
 });
 
