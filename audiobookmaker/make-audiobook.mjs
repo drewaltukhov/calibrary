@@ -189,12 +189,22 @@ export async function makeAudiobook(inputs, opts = {}) {
     const metaFile = path.join(tmp, "meta.txt");
     fs.writeFileSync(metaFile, buildFfmetadata(meta, chapters));
 
+    // Normalise the cover to a JPEG up front and attach it with -c:v copy. Encoding it
+    // inside the main run gives the chapter track a 100x audio timescale whose 32-bit
+    // timestamps overflow on long books, so Apple Books drops most chapters.
+    let coverJpg;
+    if (cover) {
+      coverJpg = path.join(tmp, "cover.jpg");
+      const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", cover, "-map", "0:v:0", "-frames:v", "1",
+        "-vf", "scale='min(1400,iw)':-2", "-q:v", "2", coverJpg], { encoding: "utf8" });
+      if (r.status !== 0) throw new Error(`Could not read cover from ${cover}:\n${r.stderr}`);
+    }
+
     const channels = opts.mono ? 1 : Math.min(2, Math.max(...tracks.map((t) => t.channels)));
     const args = ["-y", "-f", "concat", "-safe", "0", "-i", listFile, "-i", metaFile];
-    if (cover) args.push("-i", cover);
+    if (coverJpg) args.push("-i", coverJpg);
     args.push("-map", "0:a", "-map_metadata", "1", "-map_chapters", "1");
-    if (cover) args.push("-map", "2:v:0", "-c:v", "mjpeg", "-vf", "scale='min(1400,iw)':-2",
-      "-disposition:v:0", "attached_pic");
+    if (coverJpg) args.push("-map", "2:v:0", "-c:v", "copy", "-disposition:v:0", "attached_pic");
     args.push("-c:a", pickEncoder(), "-b:a", opts.bitrate || "64k",
       "-ac", String(channels), "-ar", String(tracks[0].sampleRate),
       // -f mp4, not the ipod muxer .m4b would pick: ipod rejects the cover stream.

@@ -53,14 +53,13 @@ test("builds a chaptered m4b with cover and audiobook tags", async () => {
   const secs = [3, 2, 4];
   // deliberately out of order on disk + one 44.1k mono file to exercise resampling
   for (const [i, name] of ["10 - Third.mp3", "1 - First.mp3", "2 - Second.mp3"].entries()) {
-    const extra = i === 0 ? ["-i", art, "-map", "0:a", "-map", "1:v", "-c:v", "mjpeg", "-disposition:v", "attached_pic"] : [];
+    const extra = i === 1 ? ["-i", art, "-map", "0:a", "-map", "1:v", "-c:v", "mjpeg", "-disposition:v", "attached_pic"] : [];
     ff(["-f", "lavfi", "-i", `sine=frequency=${300 + i * 100}:duration=${secs[i]}`, ...extra,
       "-ar", i === 2 ? "44100" : "48000", "-ac", "1",
       "-metadata", "album=Tagged Title", "-metadata", "artist=Jane Author", "-metadata", "title=Same",
       "-c:a", "libmp3lame", "-b:a", "64k", path.join(src, name)]);
   }
-  // cover via embedded art lives on "10 - Third", which sorts last; give the folder a cover.jpg instead
-  ff(["-i", art, path.join(src, "cover.jpg")]);
+  // cover comes from art embedded in "1 - First" (the case that once broke chapter timing)
 
   const out = path.join(dir, "out.m4b");
   await makeAudiobook([src], { output: out, narrator: "Nick Reader" });
@@ -77,6 +76,9 @@ test("builds a chaptered m4b with cover and audiobook tags", async () => {
   assert.equal(j.format.tags.media_type, "2");
   assert.ok(j.streams.some((s) => s.codec_name === "aac"));
   assert.ok(j.streams.some((s) => s.codec_type === "video" && s.disposition.attached_pic === 1), "has cover");
+  // Chapter track must share the audio timescale; a finer one overflows on long books.
+  const tb = (type) => j.streams.find((s) => s.codec_type === type).time_base;
+  assert.equal(tb("data"), tb("audio"));
 
   fs.rmSync(dir, { recursive: true, force: true });
 });
